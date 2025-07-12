@@ -1,0 +1,22 @@
+product_hunt:
+  developer_token: "${PH_DEV_TOKEN}"
+  api_url: "https://api.producthunt.com/v2/api/graphql"
+
+deepseek:
+  api_key: "${DEEPSEEK_API_KEY}"
+  base_url: "https://api.deepseek.com"
+  model: "deepseek-chat"
+
+telegram:
+  bot_token: "${TELEGRAM_BOT_TOKEN}"
+  channel_id: "${TELEGRAM_CHANNEL_ID}"
+
+scheduling:
+  daily_time: "09:00"
+  weekly_day: "monday"
+  monthly_day: 1
+  timezone: "Asia/Shanghai"
+
+logging:
+  level: "INFO"
+  file: "logs/app.log"
