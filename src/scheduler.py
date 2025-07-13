@@ -9,7 +9,7 @@ from pytz import timezone
 
 from .config_manager import ConfigManager
 from .product_hunt_api import ProductHuntAPI
-from .deepseek_analyzer import DeepSeekAnalyzer
+from .analyzer_factory import AnalyzerFactory
 from .telegram_bot import TelegramBot
 from .locales import get_text
 
@@ -46,14 +46,8 @@ class ProductHuntScheduler:
             api_url=ph_config['api_url']
         )
         
-        # DeepSeek分析器
-        ds_config = self.config.get_deepseek_config()
-        self.analyzer = DeepSeekAnalyzer(
-            api_key=ds_config['api_key'],
-            base_url=ds_config['base_url'],
-            model=ds_config['model'],
-            language=language
-        )
+        # AI analyzer (using factory to create based on configuration)
+        self.analyzer = AnalyzerFactory.create_analyzer(self.config, language)
         
         # Telegram机器人
         tg_config = self.config.get_telegram_config()
@@ -172,21 +166,21 @@ class ProductHuntScheduler:
             logger.error(f"❌ Product Hunt API connection test failed: {e}")
             ph_success = False
         
-        # Test DeepSeek API (simple analysis test)
+        # Test AI API (simple analysis test)
         try:
             if test_products:
                 test_analysis = self.analyzer.analyze_product(test_products[0])
                 if test_analysis.get('summary'):
-                    logger.info("✅ DeepSeek API connection test successful")
+                    logger.info("✅ AI API connection test successful")
                     ds_success = True
                 else:
-                    logger.error("❌ DeepSeek API returned empty analysis result")
+                    logger.error("❌ AI API returned empty analysis result")
                     ds_success = False
             else:
-                logger.warning("⚠️ Cannot test DeepSeek API (no test data)")
+                logger.warning("⚠️ Cannot test AI API (no test data)")
                 ds_success = False
         except Exception as e:
-            logger.error(f"❌ DeepSeek API connection test failed: {e}")
+            logger.error(f"❌ AI API connection test failed: {e}")
             ds_success = False
         
         # Only send test results to channel in non-silent mode
@@ -196,7 +190,7 @@ class ProductHuntScheduler:
                 f"",
                 f"Telegram Bot: {'✅ Normal' if tg_success else '❌ Failed'}",
                 f"Product Hunt API: {'✅ Normal' if ph_success else '❌ Failed'}",
-                f"DeepSeek API: {'✅ Normal' if ds_success else '❌ Failed'}",
+                f"AI API: {'✅ Normal' if ds_success else '❌ Failed'}",
                 f"",
                 f"Test Time: {datetime.now().strftime('%Y-%m-%d %H:%M:%S')}"
             ]

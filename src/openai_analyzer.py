@@ -6,15 +6,15 @@ from .locales import get_text, get_ai_language
 
 logger = logging.getLogger(__name__)
 
-class DeepSeekAnalyzer(AIAnalyzer):
-    """DeepSeek API analyzer for product content analysis and summary generation"""
+class OpenAIAnalyzer(AIAnalyzer):
+    """OpenAI API analyzer for product content analysis and summary generation"""
     
-    def __init__(self, api_key: str, base_url: str, model: str = "deepseek-chat", language: str = "zh"):
+    def __init__(self, api_key: str, base_url: str, model: str = "gpt-4o-mini", language: str = "zh"):
         """
-        Initialize DeepSeek analyzer
+        Initialize OpenAI analyzer
         
         Args:
-            api_key: DeepSeek API key
+            api_key: OpenAI API key
             base_url: API base URL
             model: Model name to use
             language: Output language code
@@ -25,7 +25,6 @@ class DeepSeekAnalyzer(AIAnalyzer):
             base_url=base_url
         )
         self.model = model
-    
     
     def analyze_product(self, product: Dict[str, Any]) -> Dict[str, Any]:
         """
@@ -72,7 +71,7 @@ class DeepSeekAnalyzer(AIAnalyzer):
                 'product_id': product['id'],
                 'name': product['name'],
                 'original_tagline': product['tagline'],
-                'summary': f"{analysis_failed_text}：{str(e)}",
+                'summary': f"{analysis_failed_text}: {str(e)}",
                 'highlights': [],
                 'category': unknown_category,
                 'use_cases': [],
@@ -83,7 +82,6 @@ class DeepSeekAnalyzer(AIAnalyzer):
                     'url': product['url']
                 }
             }
-    
     
     def generate_period_summary(self, analyzed_products: List[Dict[str, Any]], period_type: str) -> str:
         """
@@ -111,14 +109,14 @@ class DeepSeekAnalyzer(AIAnalyzer):
             requirements_text = "\n".join([f"- {req}" for req in requirements])
             
             prompt = f"""
-{instruction.format(period_name=period_name)}：
+{instruction.format(period_name=period_name)}:
 
 {products_summary}
 
-请按以下格式生成总结：
+Please generate a summary in the following format:
 {format_text}
 
-要求：
+Requirements:
 {requirements_text}
 """
 
@@ -142,46 +140,21 @@ class DeepSeekAnalyzer(AIAnalyzer):
             failed_text = get_text(self.language, f'{period_type}_task_failed', 'Task execution failed')
             return f"{failed_text}: {str(e)}"
     
-    def _format_product_for_analysis(self, product: Dict[str, Any]) -> str:
-        """Format product information for analysis"""
-        topics_str = ", ".join(product.get('topics', []))
-        
-        # Format comment information
-        comments_str = ""
-        comments = product.get('comments', [])
-        if comments:
-            comments_str = "\nUser Comments:\n"
-            for i, comment in enumerate(comments[:3], 1):  # Show at most 3 comments
-                user_name = comment.get('user_name', 'Anonymous')
-                comment_body = comment.get('body', '').strip()
-                if comment_body:
-                    comments_str += f"  {i}. {user_name}: {comment_body}\n"
-        
-        return f"""
-产品名称: {product['name']}
-标语: {product['tagline']}
-描述: {product.get('description', '无详细描述')}
-分类标签: {topics_str}
-获得票数: {product['votes_count']}
-评论数: {product['comments_count']}
-官网: {product.get('website', '无官网')}{comments_str}
-"""
-    
     def _generate_summary(self, product_text: str) -> str:
-        """生成产品摘要"""
-        # 获取多语言文本
-        instruction = get_text(self.language, 'summary_instruction', '请基于以下产品信息，生成一个简洁的摘要（50字以内）')
+        """Generate product summary"""
+        # Get multilingual text
+        instruction = get_text(self.language, 'summary_instruction', 'Please generate a concise summary based on the following product information (within 50 words)')
         requirements = get_text(self.language, 'summary_product_requirements', [])
         summary_expert_role = get_text(self.language, 'summary_expert_role', 'You are a product summary expert.')
         
         requirements_text = "\n".join([f"- {req}" for req in requirements])
         
         prompt = f"""
-{instruction}：
+{instruction}:
 
 {product_text}
 
-要求：
+Requirements:
 {requirements_text}
 """
         
@@ -198,19 +171,19 @@ class DeepSeekAnalyzer(AIAnalyzer):
         return response.choices[0].message.content.strip()
     
     def _extract_highlights(self, product_text: str) -> List[str]:
-        """提取产品亮点"""
-        # 获取多语言文本
-        instruction = get_text(self.language, 'highlights_instruction', '请基于以下产品信息，提取3-5个核心亮点（每个亮点15字以内）')
+        """Extract product highlights"""
+        # Get multilingual text
+        instruction = get_text(self.language, 'highlights_instruction', 'Please extract 3-5 core highlights based on the following product information (each highlight within 15 words)')
         
         prompt = f"""
-{instruction}：
+{instruction}:
 
 {product_text}
 
-请以列表形式返回，每个亮点一行，格式如：
-- 亮点1
-- 亮点2
-- 亮点3
+Please return as a list, one highlight per line, format:
+- Highlight 1
+- Highlight 2
+- Highlight 3
 """
         
         response = self.client.chat.completions.create(
@@ -230,26 +203,26 @@ class DeepSeekAnalyzer(AIAnalyzer):
             line = line.strip()
             if line.startswith('- '):
                 highlights.append(line[2:])
-            elif line and not line.startswith('请') and not line.startswith('以下'):
+            elif line and not line.startswith('Please') and not line.startswith('Based'):
                 highlights.append(line)
         
-        return highlights[:5]  # 最多5个亮点
+        return highlights[:5]  # Maximum 5 highlights
     
     def _categorize_product(self, product_text: str) -> str:
-        """产品分类"""
-        # 获取多语言类别选项
+        """Product categorization"""
+        # Get multilingual category options
         categories = get_text(self.language, 'categories', {})
         category_list = "\n".join([f"- {cat}" for cat in categories.values()])
         
         prompt = f"""
-请基于以下产品信息，将产品归类到最合适的一个类别：
+Please categorize the product into the most appropriate category based on the following product information:
 
 {product_text}
 
-可选类别：
+Available categories:
 {category_list}
 
-请只返回类别名称，不需要解释。
+Please return only the category name, no explanation needed.
 """
         
         response = self.client.chat.completions.create(
@@ -264,20 +237,19 @@ class DeepSeekAnalyzer(AIAnalyzer):
         
         return response.choices[0].message.content.strip()
     
-    
     def _extract_use_cases(self, product_text: str) -> List[str]:
-        """提取产品应用场景"""
-        instruction = get_text(self.language, 'use_cases_instruction', '请基于以下产品信息，描述2-3个主要应用场景（每个场景15-20字）')
+        """Extract product use cases"""
+        instruction = get_text(self.language, 'use_cases_instruction', 'Please describe 2-3 main use cases based on the following product information (15-20 words per scenario)')
         
         prompt = f"""
-{instruction}：
+{instruction}:
 
 {product_text}
 
-请以列表形式返回，每个应用场景一行，格式如：
-- 场景1
-- 场景2
-- 场景3
+Please return as a list, one use case per line, format:
+- Use case 1
+- Use case 2
+- Use case 3
 """
         
         response = self.client.chat.completions.create(
@@ -297,21 +269,21 @@ class DeepSeekAnalyzer(AIAnalyzer):
             line = line.strip()
             if line.startswith('- '):
                 use_cases.append(line[2:])
-            elif line and not line.startswith('请') and not line.startswith('以下'):
+            elif line and not line.startswith('Please') and not line.startswith('Based'):
                 use_cases.append(line)
         
-        return use_cases[:3]  # 最多3个应用场景
+        return use_cases[:3]  # Maximum 3 use cases
     
     def _analyze_target_audience(self, product_text: str) -> str:
-        """分析目标用户群体"""
-        instruction = get_text(self.language, 'target_audience_instruction', '请基于以下产品信息，描述目标用户群体（30字以内）')
+        """Analyze target audience"""
+        instruction = get_text(self.language, 'target_audience_instruction', 'Please describe the target audience based on the following product information (within 30 words)')
         
         prompt = f"""
-{instruction}：
+{instruction}:
 
 {product_text}
 
-请只返回用户群体描述，不需要解释。
+Please return only the audience description, no explanation needed.
 """
         
         response = self.client.chat.completions.create(

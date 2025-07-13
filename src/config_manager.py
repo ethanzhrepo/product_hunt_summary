@@ -107,3 +107,11 @@ class ConfigManager:
     def get_ai_system_language(self) -> str:
         """获取AI系统语言描述"""
         return self.get_language_config().get('ai_system_language', 'Chinese')
+    
+    def get_openai_config(self) -> Dict[str, Any]:
+        """获取OpenAI配置"""
+        return self.get('openai', {})
+    
+    def get_gemini_config(self) -> Dict[str, Any]:
+        """获取Gemini配置"""
+        return self.get('gemini', {})

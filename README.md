@@ -7,7 +7,7 @@ A Python application that automatically fetches trending Product Hunt products, 
 - 🌅 **Daily Tasks**: Fetch today's top 20 Product Hunt products, analyze with AI, and send to Telegram
 - 📅 **Weekly Tasks**: Get weekly trending products and generate weekly summary reports
 - 📊 **Monthly Tasks**: Get monthly trending products and generate monthly summary reports
-- 🤖 **AI Analysis**: Use DeepSeek API for product analysis and summary generation
+- 🤖 **AI Analysis**: Multiple AI provider options (DeepSeek, OpenAI, Gemini) for product analysis and summary generation
 - 📱 **Telegram Integration**: Auto-send to Telegram channels with automatic message pinning
 - ⏰ **Scheduled Tasks**: Automated scheduling using APScheduler
 - 🏷️ **Category Tags**: Different period identifiers (daily top, weekly top, monthly top)
@@ -19,7 +19,11 @@ product_hunt_summary/
 ├── src/
 │   ├── config_manager.py      # Configuration management
 │   ├── product_hunt_api.py    # Product Hunt API client
+│   ├── ai_analyzer.py         # Abstract AI analyzer base class
 │   ├── deepseek_analyzer.py   # DeepSeek AI analyzer
+│   ├── openai_analyzer.py     # OpenAI AI analyzer
+│   ├── gemini_analyzer.py     # Google Gemini AI analyzer
+│   ├── analyzer_factory.py    # AI analyzer factory
 │   ├── telegram_bot.py        # Telegram bot
 │   ├── scheduler.py           # Task scheduler
 │   └── main.py               # Application entry point
@@ -60,8 +64,10 @@ Fill in the following information in the `.env` file:
 # Product Hunt Developer Token
 PH_DEV_TOKEN=your_product_hunt_developer_token_here
 
-# DeepSeek API Key
+# AI Provider API Keys (choose one or configure multiple)
 DEEPSEEK_API_KEY=your_deepseek_api_key_here
+OPENAI_API_KEY=your_openai_api_key_here
+GEMINI_API_KEY=your_gemini_api_key_here
 
 # Telegram Bot Token
 TELEGRAM_BOT_TOKEN=your_telegram_bot_token_here
@@ -77,10 +83,22 @@ TELEGRAM_CHANNEL_ID=@your_channel_username_or_chat_id
 2. Create a new application
 3. Generate Developer Token
 
-#### DeepSeek API Key
+#### AI Provider API Keys
+
+**DeepSeek API (Default)**
 1. Visit [DeepSeek Platform](https://platform.deepseek.com/)
 2. Register an account and get API key
 3. Free version provides 5000 characters/month quota
+
+**OpenAI API (Optional)**
+1. Visit [OpenAI Platform](https://platform.openai.com/)
+2. Create an account and generate API key
+3. Pay-per-use pricing model
+
+**Google Gemini API (Optional)**
+1. Visit [Google AI Studio](https://ai.google.dev/)
+2. Get API key for Gemini
+3. Free tier available with usage limits
 
 #### Telegram Bot Token
 1. Find @BotFather in Telegram
@@ -116,6 +134,32 @@ Available commands:
 - `weekly`: Manually execute weekly task
 - `monthly`: Manually execute monthly task
 - `help`: Show help information
+
+### AI Provider Configuration
+
+Configure AI provider in `config.yml`:
+
+```yaml
+# AI provider selection (deepseek, openai, or gemini)
+ai_provider: "deepseek"
+
+# DeepSeek configuration (default)
+deepseek:
+  api_key: "${DEEPSEEK_API_KEY}"
+  base_url: "https://api.deepseek.com"
+  model: "deepseek-chat"
+
+# OpenAI configuration (optional)
+openai:
+  api_key: "${OPENAI_API_KEY}"
+  base_url: "https://api.openai.com/v1"
+  model: "gpt-4o-mini"
+
+# Google Gemini configuration (optional)
+gemini:
+  api_key: "${GEMINI_API_KEY}"
+  model: "gemini-1.5-flash"
+```
 
 ### Scheduled Task Configuration
 
@@ -181,7 +225,7 @@ Messages are tagged according to their period:
 
 - **Python 3.11+**: Main programming language
 - **Product Hunt API v2**: Product data source
-- **DeepSeek API**: AI analysis and summary generation
+- **AI APIs**: Multiple provider support (DeepSeek, OpenAI, Google Gemini)
 - **python-telegram-bot**: Telegram integration
 - **APScheduler**: Task scheduling
 - **PyYAML**: Configuration management
@@ -232,20 +276,26 @@ grep ERROR logs/app.log
 
 - `ConfigManager`: Configuration file and environment variable management
 - `ProductHuntAPI`: Product Hunt GraphQL API client
-- `DeepSeekAnalyzer`: AI analysis and summary generation
+- `AIAnalyzer`: Abstract base class for AI analyzers
+- `AnalyzerFactory`: Factory for creating AI analyzer instances
+- `DeepSeekAnalyzer`, `OpenAIAnalyzer`, `GeminiAnalyzer`: AI analysis implementations
 - `TelegramBot`: Telegram message sending and management
 - `ProductHuntScheduler`: Task scheduling and coordination
 
 ### Custom Development
 
-1. **Modify Analysis Prompts**: Edit prompts in `src/deepseek_analyzer.py`
-2. **Adjust Message Format**: Modify message templates in `src/telegram_bot.py`
-3. **Add New Task Types**: Add new methods in `src/scheduler.py`
+1. **Modify Analysis Prompts**: Edit prompts in respective analyzer files (`src/*_analyzer.py`)
+2. **Add New AI Providers**: Create new analyzer class inheriting from `AIAnalyzer` and update `AnalyzerFactory`
+3. **Adjust Message Format**: Modify message templates in `src/telegram_bot.py`
+4. **Add New Task Types**: Add new methods in `src/scheduler.py`
 
 ## API Limitations
 
 - **Product Hunt API**: Does not allow commercial use by default. Contact hello@producthunt.com for commercial use
-- **DeepSeek API**: Free version 5000 characters/month, paid version $49/month for 10K requests
+- **AI APIs**:
+  - **DeepSeek**: Free version 5000 characters/month, paid version $49/month for 10K requests
+  - **OpenAI**: Pay-per-use, rates vary by model
+  - **Google Gemini**: Free tier available, pay-per-use beyond limits
 - **Telegram Bot API**: No special restrictions, but has rate limits
 
 ## License
@@ -257,6 +307,12 @@ This project is for learning and personal use only. Please comply with the terms
 Issues and Pull Requests are welcome!
 
 ## Changelog
+
+### v1.1.0
+- Added multiple AI provider support (OpenAI, Google Gemini)
+- Refactored AI analyzer architecture with factory pattern
+- Enhanced configuration system for AI providers
+- Updated documentation for multi-provider setup
 
 ### v1.0.0
 - Initial release
