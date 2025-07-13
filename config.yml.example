@@ -2,10 +2,23 @@ product_hunt:
   developer_token: "${PH_DEV_TOKEN}"
   api_url: "https://api.producthunt.com/v2/api/graphql"
 
+# AI Provider Configuration
+# Supported providers: deepseek, openai, gemini
+ai_provider: "deepseek"  # Default provider
+
 deepseek:
   api_key: "${DEEPSEEK_API_KEY}"
   base_url: "https://api.deepseek.com"
   model: "deepseek-chat"
+
+openai:
+  api_key: "${OPENAI_API_KEY}"
+  base_url: "https://api.openai.com/v1"
+  model: "gpt-4o-mini"
+
+gemini:
+  api_key: "${GEMINI_API_KEY}"
+  model: "gemini-1.5-flash"
 
 telegram:
   bot_token: "${TELEGRAM_BOT_TOKEN}"
@@ -15,7 +28,11 @@ scheduling:
   daily_time: "09:00"
   weekly_day: "monday"
   monthly_day: 1
-  timezone: "Asia/Shanghai"
+  timezone: "America/Vancouver"
+
+language:
+  output_language: "zh"
+  ai_system_language: "Chinese"
 
 logging:
   level: "INFO"

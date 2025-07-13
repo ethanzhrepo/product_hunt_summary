@@ -26,13 +26,25 @@ class ProductHuntScheduler:
             config_manager: Configuration manager
         """
         self.config = config_manager
-        self.scheduler = AsyncIOScheduler()
+        # 启用APScheduler的调试日志
+        logging.getLogger('apscheduler').setLevel(logging.DEBUG)
+        
+        # 显式设置event loop和timezone
+        try:
+            import asyncio
+            loop = asyncio.get_event_loop()
+            self.scheduler = AsyncIOScheduler(event_loop=loop, timezone=timezone('America/Vancouver'))
+            logger.info(f"AsyncIOScheduler initialized with explicit event loop and timezone")
+        except Exception as e:
+            logger.warning(f"Failed to set explicit event loop: {e}, using default")
+            self.scheduler = AsyncIOScheduler(timezone=timezone('America/Vancouver'))
         
         # Initialize components
         self._init_components()
         
         # Setup scheduler listener
         self.scheduler.add_listener(self._job_listener, EVENT_JOB_EXECUTED | EVENT_JOB_ERROR)
+        logger.info("Job listener configured for EVENT_JOB_EXECUTED and EVENT_JOB_ERROR")
     
     def _init_components(self):
         """Initialize components"""
@@ -59,13 +71,25 @@ class ProductHuntScheduler:
     
     def _job_listener(self, event):
         """Job execution listener"""
+        logger.info(f"Job listener triggered for job: {event.job_id}")
+        logger.info(f"Event type: {type(event).__name__}")
+        logger.info(f"Scheduled run time: {event.scheduled_run_time}")
+        logger.info(f"Return value: {event.retval}")
+        
         if event.exception:
             logger.error(f"Task execution failed: {event.job_id}, error: {event.exception}")
+            logger.error(f"Exception type: {type(event.exception).__name__}")
+            import traceback
+            logger.error(f"Full traceback: {traceback.format_exc()}")
         else:
             logger.info(f"Task execution successful: {event.job_id}")
     
     async def daily_task(self):
         """Daily task: Get today's trending products and send to Telegram"""
+        from datetime import datetime
+        logger.info("🔥 DAILY TASK TRIGGERED! 🔥")
+        logger.info(f"Current time: {datetime.now()}")
+        logger.info(f"Current time with timezone: {datetime.now().astimezone()}")
         logger.info("Starting daily task execution...")
         
         try:
@@ -352,6 +376,13 @@ class ProductHuntScheduler:
         logger.info(f"  - Execution time: Daily {daily_time} ({timezone_str})")
         logger.info(f"  - Current time: {now.strftime('%Y-%m-%d %H:%M:%S %Z')}")
         logger.info(f"  - Next execution: {next_run.strftime('%Y-%m-%d %H:%M:%S %Z') if next_run else 'N/A'}")
+        logger.info(f"  - Trigger details: {daily_trigger}")
+        logger.info(f"  - Timezone object: {tz}")
+        
+        # 添加job状态检查
+        logger.info(f"Scheduler timezone: {self.scheduler.timezone}")
+        logger.info(f"Scheduler state: {self.scheduler.state}")
+        logger.info(f"Job store count: {len(self.scheduler.get_jobs())}")
         
         # Weekly task (default Monday)
         weekly_day = scheduling_config.get('weekly_day', 'monday')
@@ -399,13 +430,35 @@ class ProductHuntScheduler:
         logger.info("Scheduling setup complete! All tasks will execute automatically at set times.")
         logger.info("="*50)
     
+    async def test_scheduler_async(self):
+        """Test if scheduler can execute async functions"""
+        logger.info("🧪 TESTING ASYNC SCHEDULER EXECUTION")
+        
+        # 添加一个简单的测试任务，1分钟后执行
+        from datetime import datetime, timedelta
+        test_time = datetime.now() + timedelta(minutes=1)
+        
+        async def test_task():
+            logger.info("🎉 TEST ASYNC TASK EXECUTED SUCCESSFULLY!")
+            
+        self.scheduler.add_job(
+            test_task,
+            'date',
+            run_date=test_time,
+            id='test_async_job',
+            name='Test Async Job'
+        )
+        
+        logger.info(f"Test async job scheduled for: {test_time}")
+        
     async def run_manual_task(self, task_type: str):
         """Manually execute task"""
         task_functions = {
             'daily': self.daily_task,
             'weekly': self.weekly_task,
             'monthly': self.monthly_task,
-            'test': self.test_connections
+            'test': self.test_connections,
+            'test_scheduler': self.test_scheduler_async
         }
         
         if task_type not in task_functions:
@@ -420,6 +473,19 @@ class ProductHuntScheduler:
         if not self.scheduler.running:
             self.scheduler.start()
             logger.info("Task scheduler started")
+            
+            # 启动后立即检查job状态
+            self._log_job_status()
+            
+            # 设置定期job状态检查（每小时检查一次）
+            self.scheduler.add_job(
+                self._log_job_status,
+                CronTrigger(minute=0),  # 每小时整点检查
+                id='job_status_check',
+                name='Job Status Check',
+                replace_existing=True
+            )
+            logger.info("Added hourly job status check")
         else:
             logger.warning("Task scheduler is already running")
     
@@ -430,6 +496,25 @@ class ProductHuntScheduler:
             logger.info("Task scheduler stopped")
         else:
             logger.warning("Task scheduler is not running")
+    
+    def _log_job_status(self):
+        """Log current job status for debugging"""
+        from datetime import datetime
+        logger.info("=" * 50)
+        logger.info("📊 JOB STATUS CHECK")
+        logger.info(f"Current time: {datetime.now()}")
+        logger.info(f"Scheduler running: {self.scheduler.running}")
+        logger.info(f"Scheduler state: {self.scheduler.state}")
+        
+        jobs = self.scheduler.get_jobs()
+        logger.info(f"Total jobs: {len(jobs)}")
+        
+        for job in jobs:
+            logger.info(f"Job: {job.id} ({job.name})")
+            logger.info(f"  - Next run: {job.next_run_time}")
+            logger.info(f"  - Trigger: {job.trigger}")
+            logger.info(f"  - Function: {job.func}")
+        logger.info("=" * 50)
     
     def get_jobs(self):
         """Get all task information"""

@@ -64,6 +64,7 @@ class Application:
         self.config_manager = None
         self.scheduler = None
         self.running = False
+        self.stop_event = None
     
     def initialize(self, config_file: str = "config.yml"):
         """Initialize application"""
@@ -129,9 +130,9 @@ class Application:
             logging.info("Application startup completed, waiting for scheduled tasks...")
             logging.info("Press Ctrl+C to stop the program")
             
-            # 保持程序运行
-            while self.running:
-                await asyncio.sleep(1)
+            # 保持程序运行 - 使用事件等待而不是循环
+            self.stop_event = asyncio.Event()
+            await self.stop_event.wait()
                 
         except KeyboardInterrupt:
             logging.info("Received stop signal, shutting down application...")
@@ -143,6 +144,8 @@ class Application:
     def shutdown(self):
         """Shutdown application"""
         self.running = False
+        if self.stop_event:
+            self.stop_event.set()
         if self.scheduler:
             self.scheduler.stop()
         logging.info("Application shutdown complete")
